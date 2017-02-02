@@ -19,6 +19,9 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
                     if (localStorage.getItem("'" + tables[i].name + "'")) {
                         tables[i].color = "rgb(235, 109, 109)";
                     }
+                    if (localStorage.getItem ("'stop-"  + tables[i].name + "'")){
+                        tables[i].color = "rgb(255, 243, 72)";
+                    }
                     floor.tables.push(tables[i]);
                     tables[i].floor = floor;
 
@@ -32,31 +35,44 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
 
         initialize: function (session, attributes) {
             this.change_table = false;
+            this.previous_order =false;
             this.previous_order_id = false;
+            this.previous_order_couple =false;
+            this.quantity_of_couples = 0;
             return _super_posmodel.initialize.call(this, session, attributes);
         },
 
         // Overwritten methods
         set_table: function (table) {
+            var create_hours;
+            var create_minutes;
+            var actuallydate ;
+            var actuallyMonth ;
             if ((this.change_table)) {
                     if (!table) { // no table ? go back to the floor plan, see ScreenSelector
                         this.set_order(null);
                     } else {
                         var room_empty;
-                        if(table.color !== "rgb(235, 109, 109)"){
+                        if((table.color !== "rgb(235, 109, 109)") || (table.color !== "rgb(255, 243, 72)")){
                             room_empty = true;
                         }else{
                             room_empty=false;
                         }
                         if(room_empty) {
                             this.table.color = "rgb(130,233,171)";
+
                             //hacer cambios con la anterior mesa para ponerlas a la nueva mesa
                             var change = localStorage.getItem("'" + this.table.name + "'");
                             localStorage.removeItem("'" + this.table.name + "'");
                             localStorage.setItem("'" + table.name + "'", change);
-                            console.log("localstorageafter", localStorage);
                             var dates = new Date(localStorage.getItem("'" + table.name + "'"));
-                            clockStart.innerHTML = dates.getHours() + ':' + dates.getMinutes() + ' - ' + dates.getDate() + '/' + (dates.getMonth() + 1) + '/' + dates.getYear();
+
+                            create_hours = (dates.getHours() < 10) ? "0" + dates.getHours() : dates.getHours();
+                            create_minutes = (dates.getMinutes() < 10) ? "0" + dates.getMinutes() : dates.getMinutes();
+                            actuallydate = (dates.getDate()<10) ? "0"+dates.getDate() : dates.getDate();
+                            actuallyMonth = (dates.getMonth()+1<10) ? "0"+dates.getMonth()+1: dates.getMonth()+1;
+                            clockStart.innerHTML= create_hours + ':' + create_minutes + ' - ' + actuallydate + '/' + actuallyMonth + '/' + dates.getFullYear();
+
 
                             var change_couple = localStorage.getItem("'" + this.table.name + "-ParejaExtra'");
                             localStorage.removeItem("'" + this.table.name + "-ParejaExtra'");
@@ -88,27 +104,45 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
                 this.set_order(null);
             }
             else {
+                // table ? load the associated orders  ...
+                this.table = table;
                 if (this.change_table) {
                     this.previous_order_id.table = table;
                     this.change_table = false;
                 }
-                // table ? load the associated orders  ...
-                this.table = table;
+                if (localStorage.getItem ("'stop-"  + this.table.name + "'")){
+                    Detener.innerHTML = "Continuar";
+                    this.table.color = "rgb(255, 243, 72)";
+                }
+                var date;
                 var orders = this.get_order_list();
                 if (orders.length) {
                     this.set_order(orders[0]); // and go to the first one ...
 
-                    var date = new Date(localStorage.getItem("'" + table.name + "'"));
-                    clockStart.innerHTML= date.getHours() + ':' + date.getMinutes() + ' - ' + date.getDate() + '/' + (date.getMonth()+1) + '/' + date.getYear();
+                     dates = new Date(localStorage.getItem("'" + table.name + "'"));
+
+                    create_hours = (dates.getHours() < 10) ? "0" + dates.getHours() : dates.getHours();
+                    create_minutes = (dates.getMinutes() < 10) ? "0" + dates.getMinutes() : dates.getMinutes();
+                    actuallydate = (dates.getDate()<10) ? "0"+dates.getDate() : dates.getDate();
+                    actuallyMonth = (dates.getMonth()+1<10) ? "0"+dates.getMonth()+1: dates.getMonth()+1;
+
+                    clockStart.innerHTML= create_hours + ':' + create_minutes + ' - ' + actuallydate + '/' + actuallyMonth + '/' + dates.getFullYear();
 
                 } else {
                     this.add_new_order();  // or create a new order with the current table
 
                     var order = this.get_order();
-                    var table = order.table;
-                    localStorage.setItem("'" + table.name + "'", order.creation_date);
-                    var date = new Date(localStorage.getItem("'" + table.name + "'"));
-                    clockStart.innerHTML= date.getHours() + ':' + date.getMinutes() + ' - ' + date.getDate() + '/' + (date.getMonth()+1) + '/' + date.getYear();
+                    var tables = order.table;
+                    localStorage.setItem("'" + tables.name + "'", order.creation_date);
+                      date = new Date(localStorage.getItem("'" + tables.name + "'"));
+
+                    create_hours = (date.getHours() < 10) ? "0" + date.getHours() : date.getHours();
+                    create_minutes = (date.getMinutes() < 10) ? "0" + date.getMinutes() : date.getMinutes();
+                    actuallydate = (date.getDate()<10) ? "0"+date.getDate() : date.getDate();
+                    actuallyMonth = ((date.getMonth()+1)<10) ? "0"+(date.getMonth()+1): date.getMonth()+1;
+
+
+                    clockStart.innerHTML= create_hours + ':' + create_minutes + ' - ' + actuallydate + '/' + actuallyMonth + '/' + date.getFullYear();
 
                     this.change_color_of_table();
                     Minutos.innerHTML = ":00";
@@ -123,7 +157,10 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
             //diferencia entra la actual y la creada para obtener el tiempo transcurrido
             var actual_hour = new Date(); // Current date now.
 
+            var one_day=1000*60*60*24;
+
             var creation_hour = new Date(localStorage.getItem("'" + table.name + "'"));// Start of 2010.
+
             var time_room = (actual_hour - creation_hour); // Difference in milliseconds.
             //tiempo en milisegundos
             var time = parseInt((time_room) / 1000);
@@ -134,12 +171,13 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
                 , minutes = parseInt((time_room / (1000 * 60)) % 60)
                 , hours = parseInt((time_room / (1000 * 60 * 60)) % 24);
 
-            hours = (hours < 10) ? "0" + hours : hours;
-            minutes = (minutes < 10) ? "0" + minutes : minutes;
-            seconds = (seconds < 10) ? "0" + seconds : seconds;
 
-            //Centesimas.innerHTML = ":" + milliseconds;
-            // Segundos.innerHTML = ":" + seconds;
+             var days = Math.round(time_room/one_day);
+            hours = (days>0) ? (24*days)+hours : 0 ;
+            hours = (hours < 10) ? "0" + hours : hours;
+             minutes = (minutes < 10) ? "0" + minutes : minutes;
+             seconds = (seconds < 10) ? "0" + seconds : seconds;
+
             Minutos.innerHTML = ":" + minutes;
             Horas.innerHTML = hours;
 
@@ -147,11 +185,12 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
         change_color_of_table: function () {
             var order = this.get_order();
             var table = order.table;
-            if (order.get_orderlines().length > 0) {
+            if (order.get_orderlines().length > 0) { // is not working
                 table.color = "rgb(235, 109, 109)"; // Fixme: client side change doesn't storage in the database
             } else {
                 table.color = "rgb(130, 233, 171)";
             }
+
         },
         add_new_order: function () {
             _super_posmodel.add_new_order.call(this);
@@ -201,46 +240,92 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
 
             var extra_minutes_couple = Math.abs(minutes_apart - wait_time_couple);
             var extra_product_qty_couple = Math.ceil(extra_minutes_couple / extra_time_couple);
-            var extra_product_id_for_couple = this.get_additional_couple_product_id_for_table();
+
 
             var orderExtracouple;
+            var orderExtraExtracouple;
 
-            //default_couple_product_id
+            //pareja extra
             var default_product_id = this.get_default_couple_product_id_for_table();
+            //hora extra pareja extra
+            var extra_product_id_for_couple = this.get_additional_couple_product_id_for_table();
             var quantity = 0;
             //validar el update order
             var list_products = order.orderlines.models;
             var quantity_default_couple=0;
             var modifyQuantityCouple = 0;
-            for (var product in list_products) {
-                if (list_products[product].product.id == default_product_id) {
-                    quantity_default_couple = list_products[product].quantity;
+
+            //horas extras de la habitacion con parejas extras de una anterior orden
+            if(this.previous_order_couple)
+            {
+                for (product in list_products) {
+                    if (list_products[product].product.id == this.previous_order_couple) {
+                        quantity = list_products[product].quantity;
+
+                    }
                 }
-                if (list_products[product].product.id == extra_product_id_for_couple) {
-                    orderExtracouple = list_products[product];
-                    quantity += list_products[product].quantity;
-                }
-            }
-            if (orderExtracouple) {
-                if ((quantity/quantity_default_couple) == extra_product_qty_couple) {
+                if (quantity == extra_product_qty_couple) {
                     return false;
-                } else {
-                    extra_product_qty_couple = (extra_product_qty_couple - (quantity/quantity_default_couple))*quantity_default_couple;
-                    modifyQuantityCouple = extra_product_qty_couple + quantity
-                    this.modify_extra_product_to_current_order(modifyQuantityCouple,orderExtracouple);
+                }else{
+                    var quantity_previous_couple=0;
+                    for (var product in list_products) {
+                        if (list_products[product].product.id == extra_product_id_for_couple) {
+                            orderExtraExtracouple = list_products[product];
+                            quantity_previous_couple = list_products[product].quantity;
+
+                        }
+                    }
+
+                    if (orderExtraExtracouple) {
+
+                        if ((quantity/this.quantity_of_couples) == extra_product_qty_couple) {
+                            return false;
+                        } else {
+
+
+                            extra_product_qty_couple = (extra_product_qty_couple - (quantity/this.quantity_of_couples))*this.quantity_of_couples;
+                            modifyQuantityCouple = extra_product_qty_couple + quantity;
+
+                            this.modify_extra_product_to_current_order(modifyQuantityCouple,orderExtraExtracouple);
+                        }
+                    }else{
+                        extra_product_qty_couple = Math.abs(quantity - extra_product_qty_couple) * this.quantity_of_couples;
+
+                        this.add_extra_product_couple_to_current_order(extra_product_qty_couple);
+                    }
                 }
-            }else{
-                extra_product_qty_couple = extra_product_qty_couple * quantity_default_couple;
-                this.add_extra_product_couple_to_current_order(extra_product_qty_couple);
+
+            }
+            else {
+                //calcular el producto extra de pareja actual de la habitacion
+                for (var product in list_products) {
+                    if (list_products[product].product.id == default_product_id) {
+                        quantity_default_couple = list_products[product].quantity;
+                    }
+                    if (list_products[product].product.id == extra_product_id_for_couple) {
+                        orderExtracouple = list_products[product];
+                        quantity += list_products[product].quantity;
+                    }
+                }
+                if (orderExtracouple) {
+                    if ((quantity / quantity_default_couple) == extra_product_qty_couple) {
+                        return false;
+                    } else {
+                        extra_product_qty_couple = (extra_product_qty_couple - (quantity / quantity_default_couple)) * quantity_default_couple;
+                        modifyQuantityCouple = extra_product_qty_couple + quantity;
+                        this.modify_extra_product_to_current_order(modifyQuantityCouple, orderExtracouple);
+                    }
+                } else {
+                    extra_product_qty_couple = extra_product_qty_couple * quantity_default_couple;
+                    this.add_extra_product_couple_to_current_order(extra_product_qty_couple);
+                }
             }
         },
         calculate_extra_product: function (minutes_apart) {
             var order = this.get_order(),
                 table = order.table,
                 wait_time = table.wait_time,
-                extra_time = table.extra_time,
-                wait_time_couple = table.wait_time_couple,
-                extra_time_couple = table.extra_time_couple;
+                extra_time = table.extra_time;
 
             var extra_minutes = Math.abs(minutes_apart - wait_time);
             var extra_product_qty = Math.ceil(extra_minutes / extra_time);
@@ -248,11 +333,44 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
             var extra_product_id = this.get_extra_product_id_for_table();
 
             var orderExtra;
+            var orderExtra_couple;
+            var orderExtra_previous_order;
             //validar el update order
             var list_products = order.orderlines.models;
             var quantity = 0;
             var modifyQuantityProduct = 0;
-            for (var product in list_products) {
+            var modifyQuantityProduct_new = 0;
+            var product;
+            //horas extras de la habitacion de una anterior orden
+            if(this.previous_order)
+            {
+                for (product in list_products) {
+                    if (list_products[product].product.id == this.previous_order) {
+                        quantity = list_products[product].quantity;
+                    }
+                }
+                if (quantity == extra_product_qty) {
+                    return false;
+                }else{
+                    for (product in list_products)
+                    {
+                        var quantity_new = 0;
+                        if (list_products[product].product.id == extra_product_id) {
+                            orderExtra_previous_order = list_products[product];
+                            quantity_new = list_products[product].quantity;
+                        }
+                    }
+                    if (orderExtra_previous_order) {
+                        modifyQuantityProduct_new = extra_product_qty - quantity - quantity_new;
+                    } else {
+                        modifyQuantityProduct_new = extra_product_qty - quantity;
+                    }
+                }
+
+            }
+
+            //calculo de la orden de la mesa actual
+            for (product in list_products) {
                 if (list_products[product].product.id == extra_product_id) {
                     orderExtra = list_products[product];
                     quantity += list_products[product].quantity;
@@ -267,12 +385,33 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
                     modifyQuantityProduct = extra_product_qty + quantity;
                     this.modify_extra_product_to_current_order(modifyQuantityProduct,orderExtra);
                 }
-            }else {
-                this.add_extra_product_to_current_order(extra_product_qty,orderExtra);
+            }else if(this.previous_order){
+                    this.add_extra_product_to_current_order(modifyQuantityProduct_new,orderExtra_previous_order);
+
             }
+            else {
+
+                    this.add_extra_product_to_current_order(extra_product_qty, orderExtra);
+
+            }
+
         },
         modify_extra_product_to_current_order : function(extra_product_qty,orderExtra){
+
             orderExtra.set_quantity(extra_product_qty);
+        },
+        get_quantity_of_couples : function(){
+            var order = this.get_order();
+            var default_couple = this.get_default_couple_product_id_for_table();
+            var list_products = order.orderlines.models;
+            var quantity = 0;
+            var product;
+            for (product in list_products) {
+                if (list_products[product].product.id == default_couple) {
+                    quantity = list_products[product].quantity;
+                }
+            }
+            return quantity;
         },
         get_additional_couple_product_id_for_table: function () {
             var order = this.get_order(),
@@ -329,6 +468,7 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
                 this.table.color = _.escape(color);
                 this.$el.css({'background': this.table.color});
             }
+
         }
     });
 
@@ -346,6 +486,9 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
                 table.color = "rgb(235, 109, 109)";
             } else {
                 table.color = "rgb(130, 233, 171)";
+            }
+            if(localStorage.getItem("'stop-"+table.name+"'")){
+                table.color = "rgb(255, 243, 72)";
             }
         }
     });
@@ -394,8 +537,6 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
         }
     });
 
-    //var intervalExtraHour = setInterval( this.pos.button_click(), 3000);
-
     screens.define_action_button({
         'name': 'update_order_time',
         'widget': TableUpdateOrderButton,
@@ -423,7 +564,7 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
     //put the clock when started the service
 
     TableClockStart = screens.ActionButtonWidget.extend({
-        template: 'TableClockStart'
+        template: 'TableClockStart',
     });
 
     screens.define_action_button({
@@ -433,6 +574,35 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
             return this.pos.config.iface_floorplan;
         }
     });
+    //Stop the time
+    TableUpdateTimeStopButton = screens.ActionButtonWidget.extend({
+        template: 'TableUpdateTimeStopButton',
+        button_click : function(){
+            var order = this.pos.get_order(),
+                table = order.table;
+            if(Detener.innerHTML == "Detener") {
+                Detener.innerHTML = "Continuar";
+                localStorage.setItem("'stop-" + table.name + "'",new Date());
+            }else{
+                Detener.innerHTML = "Detener";
+                var stop_time_room = new Date(localStorage.getItem("'stop-" + table.name + "'"));
+                var time_room = new Date(localStorage.getItem("'" + table.name + "'"));
+                var actually_time = new Date();
+                var difference_time = actually_time-stop_time_room;
+                time_room.setTime(time_room.getTime() + difference_time);
+                localStorage.setItem("'"+table.name+"'",new Date(time_room));
+                localStorage.removeItem("'stop-" + table.name + "'");
+            }
+        }
+    });
+    screens.define_action_button({
+        'name': 'time_stop',
+        'widget': TableUpdateTimeStopButton,
+        'condition': function () {
+            return this.pos.config.iface_floorplan;
+        }
+    });
+    //
 
     //TableAddCoupleButton
 

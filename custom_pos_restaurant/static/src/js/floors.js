@@ -53,7 +53,7 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
                         this.set_order(null);
                     } else {
                         var room_empty;
-                        if((table.color !== "rgb(235, 109, 109)") || (table.color !== "rgb(255, 243, 72)")){
+                        if((table.color !== "rgb(235, 109, 109)") && (table.color !== "rgb(255, 243, 72)")){
                             room_empty = true;
                         }else{
                             room_empty=false;
@@ -70,7 +70,7 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
                             create_hours = (dates.getHours() < 10) ? "0" + dates.getHours() : dates.getHours();
                             create_minutes = (dates.getMinutes() < 10) ? "0" + dates.getMinutes() : dates.getMinutes();
                             actuallydate = (dates.getDate()<10) ? "0"+dates.getDate() : dates.getDate();
-                            actuallyMonth = (dates.getMonth()+1<10) ? "0"+dates.getMonth()+1: dates.getMonth()+1;
+                            actuallyMonth = (dates.getMonth()+1<10) ? +dates.getMonth()+1: dates.getMonth()+1;
                             clockStart.innerHTML= create_hours + ':' + create_minutes + ' - ' + actuallydate + '/' + actuallyMonth + '/' + dates.getFullYear();
 
 
@@ -124,7 +124,7 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
                     create_hours = (dates.getHours() < 10) ? "0" + dates.getHours() : dates.getHours();
                     create_minutes = (dates.getMinutes() < 10) ? "0" + dates.getMinutes() : dates.getMinutes();
                     actuallydate = (dates.getDate()<10) ? "0"+dates.getDate() : dates.getDate();
-                    actuallyMonth = (dates.getMonth()+1<10) ? "0"+dates.getMonth()+1: dates.getMonth()+1;
+                    actuallyMonth = (dates.getMonth()+1<10) ?dates.getMonth()+1: dates.getMonth()+1;
 
                     clockStart.innerHTML= create_hours + ':' + create_minutes + ' - ' + actuallydate + '/' + actuallyMonth + '/' + dates.getFullYear();
 
@@ -139,7 +139,7 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
                     create_hours = (date.getHours() < 10) ? "0" + date.getHours() : date.getHours();
                     create_minutes = (date.getMinutes() < 10) ? "0" + date.getMinutes() : date.getMinutes();
                     actuallydate = (date.getDate()<10) ? "0"+date.getDate() : date.getDate();
-                    actuallyMonth = ((date.getMonth()+1)<10) ? "0"+(date.getMonth()+1): date.getMonth()+1;
+                    actuallyMonth = ((date.getMonth()+1)<10) ? (date.getMonth()+1): date.getMonth()+1;
 
 
                     clockStart.innerHTML= create_hours + ':' + create_minutes + ' - ' + actuallydate + '/' + actuallyMonth + '/' + date.getFullYear();
@@ -527,11 +527,18 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
                 }
             }
             if(order_couple) {
-                var added_couple = new Date(localStorage.getItem("'" + table.name + "-ParejaExtra'"));
-                var difference_x_couple = Math.abs(now - added_couple);
-                var minutes_apart_x_couple = Math.floor((difference_x_couple / 1000) / 60);
-                if (minutes_apart_x_couple > table.wait_time_couple) {
-                    this.pos.calculate_extra_product_couple(minutes_apart_x_couple);
+                var added_couple_date = localStorage.getItem("'" + table.name + "-ParejaExtra'");
+                if(added_couple_date!=null) {
+                    var added_couple = new Date();
+                    var difference_x_couple = Math.abs(now - added_couple);
+                    var minutes_apart_x_couple = Math.floor((difference_x_couple / 1000) / 60);
+                    console.log("added_couple", added_couple);
+                    console.log("difference", difference_x_couple);
+                    console.log("minutes_apart_x_couple", minutes_apart_x_couple);
+                    if (minutes_apart_x_couple > table.wait_time_couple) {
+                        console.log("entre 2");
+                        this.pos.calculate_extra_product_couple(minutes_apart_x_couple);
+                    }
                 }
             }
         }
@@ -616,7 +623,6 @@ odoo.define('custom_pos_restaurant.floors', function (require) {
             }
         },
         button_click: function () {
-            var order = this.pos.get_order();
             this.add_default_couple_product_to_current_order();
         },
         add_default_couple_product_to_current_order: function () {
